@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 import { prisma } from '@/lib/db';
 import { createTaskSchema, projectIdSchema } from '@/lib/validations';
+import { createErrorResponse, ErrorCode } from '@/lib/apiResponse';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'fallback-secret-do-not-use-in-production';
 
@@ -17,13 +18,13 @@ export async function GET(
     const token = cookieStore.get('auth_token')?.value;
 
     if (!token) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return createErrorResponse(ErrorCode.UNAUTHORIZED, 'Unauthorized', [], 401);
     }
     let payload;
     try {
       payload = jwt.verify(token, JWT_SECRET) as { userId: string };
     } catch {
-      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+      return createErrorResponse(ErrorCode.INVALID_TOKEN, 'Invalid token', [], 401);
     }
 
     const page = params.page ? params.page : 1;
@@ -35,8 +36,18 @@ export async function GET(
     const skip = (sagePage - 1) * sagePageSize;
     const take = sagePageSize;
 
-    // SECURITY BUG: Only checking if user is authenticated, NOT if they own the project
-    // This allows any authenticated user to access any project's tasks by ID
+    // Check if the project exists and belongs to the authenticated user
+    const project = await prisma.project.findFirst({
+      where: {
+        id: params.projectId,
+        userId: payload.userId,
+      },
+    });
+
+    if (!project) {
+      return createErrorResponse(ErrorCode.FORBIDDEN, 'Access denied to this project', [], 403);
+    }
+
     const tasks = await prisma.task.findMany({
       where: { 
         projectId: params.projectId,
@@ -67,9 +78,11 @@ export async function GET(
     });
   } catch (error) {
     console.error('Error fetching tasks:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch tasks' },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      'Failed to fetch tasks',
+      [],
+      500
     );
   }
 }
@@ -84,13 +97,14 @@ export async function POST(
     const token = cookieStore.get('auth_token')?.value;
 
     if (!token) {
-      return NextResponse.json('Not authenticated', { status: 401 }); // Inconsistent error
+      return createErrorResponse(ErrorCode.UNAUTHORIZED, 'Unauthorized', [], 401);
     }
 
+    let payload;
     try {
-      jwt.verify(token, JWT_SECRET);
+      payload = jwt.verify(token, JWT_SECRET) as { userId: string };
     } catch {
-      return NextResponse.json('Bad token', { status: 401 }); // Inconsistent error
+      return createErrorResponse(ErrorCode.INVALID_TOKEN, 'Invalid token', [], 401);
     }
 
     const body = await request.json();
@@ -99,10 +113,24 @@ export async function POST(
     const parsedProjectID = projectIdSchema.safeParse(params);
     
     if(!parsedBody.success || !parsedProjectID.success) {
-      return NextResponse.json(
-        { message: 'Validation failed', errors: {body: parsedBody.error,params: parsedProjectID.error} },
-        { status: 400 }
+      return createErrorResponse(
+        ErrorCode.VALIDATION_ERROR,
+        'Validation failed',
+        [{ body: parsedBody.error, params: parsedProjectID.error }],
+        400
       );
+    }
+
+    // Check if the project exists and belongs to the authenticated user
+    const project = await prisma.project.findFirst({
+      where: {
+        id: parsedProjectID.data.projectId,
+        userId: payload.userId,
+      },
+    });
+
+    if (!project) {
+      return createErrorResponse(ErrorCode.FORBIDDEN, 'Access denied to this project', [], 403);
     }
 
     const task = await prisma.task.create({
@@ -116,9 +144,11 @@ export async function POST(
     return NextResponse.json(task, { status: 201 });
   } catch (error) {
     console.error('Error creating task:', error);
-    return NextResponse.json(
-      { message: 'Task creation failed' }, 
-      { status: 500 }
+    return createErrorResponse(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      'Task creation failed',
+      [],
+      500
     );
   }
 }

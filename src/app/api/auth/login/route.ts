@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import bcrypt from 'bcryptjs';
 import { prisma } from '@/lib/db';
 import { signToken } from '@/lib/auth';
+import { createErrorResponse, ErrorCode } from '@/lib/apiResponse';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,9 +15,11 @@ export async function POST(request: NextRequest) {
     });
 
     if (!user) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
+      return createErrorResponse(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Invalid email or password',
+        [],
+        401
       );
     }
 
@@ -24,9 +27,11 @@ export async function POST(request: NextRequest) {
     const isValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isValid) {
-      return NextResponse.json(
-        { error: 'Invalid credentials' },
-        { status: 401 }
+      return createErrorResponse(
+        ErrorCode.INVALID_CREDENTIALS,
+        'Invalid email or password',
+        [],
+        401
       );
     }
 
@@ -46,9 +51,11 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (error) {
     console.error('Login error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
+    return createErrorResponse(
+      ErrorCode.INTERNAL_SERVER_ERROR,
+      'An unexpected error occurred during login',
+      [],
+      500
     );
   }
 }
