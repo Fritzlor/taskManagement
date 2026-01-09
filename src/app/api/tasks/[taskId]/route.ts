@@ -18,9 +18,9 @@ export async function PATCH(
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
-
+    let payload;
     try {
-      jwt.verify(token, JWT_SECRET);
+      payload = jwt.verify(token, JWT_SECRET) as { userId: string };
     } catch {
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
     }
@@ -30,7 +30,10 @@ export async function PATCH(
     // SECURITY BUG: Not verifying the task belongs to a project owned by the logged-in user
     // Any authenticated user can update any task by guessing the taskId
     const task = await prisma.task.update({
-      where: { id: params.taskId },
+      where: { 
+        id: params.taskId ,
+        project: { userId: payload.userId }
+      },
       data: {
         title: body.title !== undefined ? body.title : undefined,
         description: body.description !== undefined ? body.description : undefined,
@@ -59,9 +62,9 @@ export async function DELETE(
     if (!token) {
       return NextResponse.json({ unauthorized: true }, { status: 401 }); // Inconsistent
     }
-
+    let payload;
     try {
-      jwt.verify(token, JWT_SECRET);
+      payload = jwt.verify(token, JWT_SECRET) as { userId: string };
     } catch {
       return NextResponse.json({ unauthorized: true }, { status: 401 });
     }
@@ -69,7 +72,7 @@ export async function DELETE(
     // SECURITY BUG: Not verifying the task belongs to a project owned by the logged-in user
     // Any authenticated user can delete any task by guessing the taskId
     await prisma.task.delete({
-      where: { id: params.taskId },
+      where: { id: params.taskId, project: { userId: payload.userId } },
     });
 
     return NextResponse.json({ deleted: true });
