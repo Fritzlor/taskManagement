@@ -17,6 +17,10 @@ export const createTaskSchema = z.object({
   description: z.string().min(3).max(1000).optional(),
 });
 
+export const createProjectSchema = z.object({
+  name: z.string().min(1).max(255),
+});
+
 export const projectIdSchema = z.object({
   projectId: z.string(),
 });

@@ -121,4 +121,13 @@ After seeding, you can log in with:
 
 ## Candidate Notes
 
-_Add your write-up here after completing the assessment tasks._
+- **Security Bug Fixed**: Implemented proper authorization checks in all API endpoints to ensure users can only access their own projects and tasks. Added explicit project ownership verification before allowing CRUD operations on tasks.
+- **Pagination Implemented**: Added pagination support to the GET /api/projects/:projectId/tasks endpoint with configurable page and pageSize parameters, including proper metadata in responses for frontend integration.
+- **Input Validation Added**: Created Zod schemas for all request bodies and parameters, ensuring data integrity and preventing malformed requests. Added validation for project creation, task creation, and task updates.
+- **Standardized API Errors**: Developed a centralized error handling utility that formats all API errors consistently with error codes, human-readable messages, and optional details arrays, improving client-side error handling.
+- **Global Error Handling**: Applied the standardized error format across all API routes, ensuring consistent error responses throughout the application and better debugging capabilities.
+- **Test Case Fixed**: Updated the failing authorization test to reflect the corrected security implementation, confirming that unauthorized access attempts now properly return 403 Forbidden responses.
+- **Code Quality Improvements**: Refactored duplicated authentication logic and improved error handling consistency, making the codebase more maintainable and reducing potential security oversights.
+- **Pragmatic Approach**: Focused on essential fixes without over-engineering, prioritizing security, validation, and consistency over additional features, ensuring the application meets core requirements efficiently.
+- **Trade-offs Made**: Chose to implement explicit authorization checks rather than relying solely on database-level filtering for better error messaging and control, accepting minor performance overhead for improved user experience.
+- **Future Improvements**: With more time, would add comprehensive integration tests, implement rate limiting, add API documentation with OpenAPI/Swagger, and consider implementing refresh tokens for better auth security.
